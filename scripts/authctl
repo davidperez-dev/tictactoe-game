@@ -1,0 +1,267 @@
+#!/bin/bash
+
+### HEADER ##################################################################################################################
+## Copyright (C) David Perez - All Rights Reserved
+## Unauthorized copying of this software, via any medium is strictly prohibited.
+## Proprietary and confidential.
+##
+## File: auth_ctl
+## Maintainer: David Perez <davidperez.code@gmail.com>
+## Create date: 2026/05/07
+## Description: Authentication cli tool for managing users and roles.
+### END HEADER ##############################################################################################################
+
+set -euo pipefail
+
+### VARIABLES DECLARATION ###################################################################################################
+SCRIPT_NAME="auth_ctl"
+VERSION="202605"
+
+## Arguments parse
+VALID_ARGUMENTS=$#
+
+g_request_newuser=0
+g_request_changepass=0
+g_request_gettoken=0
+g_request_user=""
+g_request_pass=""
+
+CONTAINER="django-auth-1"
+CONTAINER_DB="mariadb-1"
+DJANGO_HOST="${DJANGO_HOST:-http://127.0.0.1:8000}"
+### END VARIABLES DECLARATION ###############################################################################################
+
+### FUNCTIONS ###############################################################################################################
+# Show usage
+show_usage(){
+    echo
+    echo "Description: Authentication CLI tool for managing users and roles."
+    
+    echo
+    echo "Usage: $SCRIPT_NAME
+                [ --new-user        ]    create a new user and assign a role
+                [ --change-pass     ]    change a user's password
+                [ --get-token       ]    obtain a JWT for a user and display the decoded payload
+                [ -u | --user       ]    specify the username
+                [ -p | --pass       ]    specify the password
+                [ -v | --version    ]    show the script version and exit
+                [ -h | --help       ]    show this help and exit"
+    echo
+    exit 0
+}
+
+# Show software information
+show_version(){
+    echo "$SCRIPT_NAME version: $VERSION"
+    exit 0
+}
+
+_check_container(){
+    local name
+    for name in "$CONTAINER_DB" "$CONTAINER"; do
+        if ! docker inspect --format '{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
+            printf 'Error: container "%s" is not running. \n' "$name" >&2
+            printf 'You can start the container with: [ sudo docker start %s ]\n' "$name" >&2
+            exit 1
+        fi
+    done
+}
+
+_manage(){
+    docker exec -i "$CONTAINER" \
+        python django_auth/manage.py "$@"
+}
+
+_user_exists(){
+    _manage shell -c \
+        "from django.contrib.auth.models import User; print(User.objects.filter(username='$1').exists())" \
+        | tr -d '\r\n' | tail -c 4
+}
+
+_validate_password(){
+    # $1 = password to validate
+    # Returns 0 if valid, prints error and returns 1 otherwise
+    local p="$1"
+    local allowed_special='@#%()_+-.'
+    local errors=()
+
+    (( ${#p} >= 10 ))                       || errors+=("at least 10 characters")
+    [[ "$p" =~ [A-Z] ]]                     || errors+=("one uppercase letter")
+    [[ "$p" =~ [a-z] ]]                     || errors+=("one lowercase letter")
+    [[ "$p" =~ [0-9] ]]                     || errors+=("one digit")
+    [[ "$p" =~ [@#%()\_+\-.] ]]             || errors+=("one special character (@ # % ( ) _ + - .)")
+    # Reject characters not in the allowed set
+    local stripped="${p//[A-Za-z0-9@#%()\_+\-.]}"
+    [[ -z "$stripped" ]]                    || errors+=("only allowed special characters: @ # % ( ) _ + - .")
+
+    if (( ${#errors[@]} > 0 )); then
+        printf 'Error: password must contain %s.\n' "$(IFS=', '; echo "${errors[*]}")" >/dev/tty
+        return 1
+    fi
+    return 0
+}
+
+_prompt_password(){
+    local pass1 pass2
+    printf 'Password requirements: min 10 chars, uppercase, lowercase, digit, special (@ # %% ( ) _ + - .)\n' >/dev/tty
+    while true; do
+        printf 'Password: ' >/dev/tty
+        read -r -s pass1 </dev/tty; printf '\n' >/dev/tty
+        _validate_password "$pass1" || continue
+        printf 'Confirm password: ' >/dev/tty
+        read -r -s pass2 </dev/tty; printf '\n' >/dev/tty
+        [[ "$pass1" != "$pass2" ]] && { printf 'Error: passwords do not match. Try again.\n' >/dev/tty; continue; }
+        break
+    done
+    printf '%s' "$pass1"
+}
+
+_prompt_role(){
+    local role
+    while true; do
+        read -r -p "Role [admin/user]: " role
+        case "$role" in
+            admin|user) break ;;
+            *) echo "Error: role must be admin or user." >&2 ;;
+        esac
+    done
+    printf '%s' "$role"
+}
+
+new_user(){
+    _check_container
+    local username role password
+
+    read -r -p "Username: " username
+    [[ -z "$username" ]] && { echo "Error: username cannot be empty." >&2; return 1; }
+    [[ "$(_user_exists "$username")" == "True" ]] && { echo "Error: user '$username' already exists." >&2; return 1; }
+
+    role="$(_prompt_role)"
+    password="$(_prompt_password)"
+
+    _manage create_user "$username" "$password" "$role"
+}
+
+change_pass(){
+    _check_container
+    local username="${g_request_user:-}"
+    local password role
+
+    if [[ -z "$username" ]]; then
+        read -r -p "Username: " username
+        [[ -z "$username" ]] && { echo "Error: username cannot be empty." >&2; return 1; }
+    fi
+
+    password="$(_prompt_password)"
+
+    if [[ "$(_user_exists "$username")" == "True" ]]; then
+        _manage change_password "$username" "$password"
+    else
+        echo "User '$username' not found — creating..."
+        role="$(_prompt_role)"
+        _manage create_user "$username" "$password" "$role"
+    fi
+}
+
+get_token(){
+    _check_container
+    local username="${g_request_user:-}"
+    local password="${g_request_pass:-}"
+
+    if [[ -z "$username" || -z "$password" ]]; then
+        echo "Error: --user and --pass are required for --get-token." >&2
+        return 1
+    fi
+
+    local response access
+    response=$(curl -sf -X POST "$DJANGO_HOST/api/v1/token/" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\": \"$username\", \"password\": \"$password\"}")
+
+    echo "── Response ──────────────────────────────────"
+    echo "$response" | python3 -m json.tool
+
+    access=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin)['access'])")
+
+    echo ""
+    echo "── Decoded JWT payload ───────────────────────"
+    echo "$access" | cut -d. -f2 | \
+        python3 -c "import sys,base64,json; d=sys.stdin.read().strip(); d+='=='*(-len(d)%4); print(json.dumps(json.loads(base64.b64decode(d)), indent=2))"
+
+    echo ""
+    echo "── Authorization header ──────────────────────"
+    echo "Authorization: Bearer $access"
+}
+
+### END FUNCTIONS ###########################################################################################################
+
+### ARGPARSE ################################################################################################################
+if [ "$VALID_ARGUMENTS" -eq 0 ]; then
+    show_usage
+fi
+
+if [ $EUID != 0 ]; then 
+    printmsg 4 "Please, run with root privileges"
+    exit 1
+fi
+
+while :
+do
+    [ $# -eq 0 ] && break
+
+    if [ "$1" = "--new-user" ]; then
+        g_request_newuser=1
+        shift 1
+
+    elif [ "$1" = "--change-pass" ]; then
+        g_request_changepass=1
+        shift 1
+
+    elif [ "$1" = "--get-token" ] || [ "$1" = "-t" ]; then
+        g_request_gettoken=1
+        shift 1
+
+    elif [ "$1" = "-u" ] || [ "$1" = "--user" ]; then
+        g_request_user="$2"
+        shift 2
+
+    elif [ "$1" = "-p" ] || [ "$1" = "--pass" ]; then
+        g_request_pass="$2"
+        shift 2
+
+    elif [ "$1" = "-v" ] || [ "$1" = "--version" ]; then
+        show_version
+
+    elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        show_usage
+
+    else
+        shift
+        break
+
+    fi
+done
+### END ARGPARSE ############################################################################################################
+
+### MAIN ####################################################################################################################
+main(){
+    if [ $g_request_newuser -eq 1 ]; then
+        new_user
+
+    elif [ $g_request_changepass -eq 1 ]; then
+        change_pass
+
+    elif [ $g_request_gettoken -eq 1 ]; then
+        get_token
+
+    else
+        show_usage
+
+    fi
+
+}
+
+main
+### END MAIN ################################################################################################################
+
+exit 0
