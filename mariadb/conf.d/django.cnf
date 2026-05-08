@@ -1,0 +1,32 @@
+# =============================================================================
+# MariaDB server configuration — Django Auth
+# =============================================================================
+
+[mysqld]
+
+# ---------------------------------------------------------------------------
+# Character set — utf8mb4 required by Django for full Unicode support.
+# ---------------------------------------------------------------------------
+character-set-server  = utf8mb4
+collation-server      = utf8mb4_unicode_ci
+
+[client]
+default-character-set = utf8mb4
+
+# ---------------------------------------------------------------------------
+# Storage engine
+# ---------------------------------------------------------------------------
+[mysqld]
+default_storage_engine  = InnoDB
+innodb_file_per_table   = 1
+innodb_buffer_pool_size = 128M
+
+# ---------------------------------------------------------------------------
+# Slow query log
+# ---------------------------------------------------------------------------
+slow_query_log      = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time     = 2
+
+general_log      = 0
+general_log_file = /var/log/mysql/general.log

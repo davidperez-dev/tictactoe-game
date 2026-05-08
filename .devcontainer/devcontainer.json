@@ -1,12 +1,15 @@
 {
     "name": "Tic-Tac-Toe Django",
 
-    // Build the 'development' stage of the root dockerfile
-    "build": {
-        "dockerfile": "../dockerfile",
-        "context": "..",
-        "target": "development"
-    },
+    // Use docker-compose to start both Django and MariaDB
+    "dockerComposeFile": ["../docker-compose.yml", "docker-compose.dev.yml"],
+    "service": "tictactoe-1",
+    "shutdownAction": "stopCompose",
+
+    // Run VS Code Server as root so it has a writable home directory (/root).
+    // The development stage has no dedicated non-root user; without this VS Code
+    // picks up the system user created in the production stage (home=/nonexistent).
+    "remoteUser": "root",
 
     // Mount the workspace into the container working directory
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",

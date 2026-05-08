@@ -1,0 +1,4 @@
+services:
+  tictactoe-1:
+    build:
+      target: development

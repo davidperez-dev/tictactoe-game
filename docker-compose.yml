@@ -52,11 +52,11 @@ services:
         max-file: "5"
 
   # ── Django ────────────────────────────────────────────────────────────────
-  django-auth-1:
+  tictactoe-1:
     build:
       context: .
       dockerfile: dockerfile
-    container_name: django-auth-1
+    container_name: tictactoe-1
     restart: unless-stopped
     depends_on:
       mariadb-1:
