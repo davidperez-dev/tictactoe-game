@@ -4,7 +4,9 @@
 # =============================================================================
 set -euo pipefail
 
-cd /app/django_auth
+SERVICE_NAME="tictactoe"
+
+cd /app/${SERVICE_NAME}
 
 echo "[entrypoint] Applying database migrations..."
 python manage.py migrate --noinput
@@ -13,7 +15,7 @@ echo "[entrypoint] Collecting static files..."
 python manage.py collectstatic --noinput
 
 echo "[entrypoint] Starting Gunicorn..."
-exec gunicorn django_auth.wsgi:application \
+exec gunicorn ${SERVICE_NAME}.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
     --timeout 60 \
