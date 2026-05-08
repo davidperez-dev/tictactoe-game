@@ -1,0 +1,52 @@
+{
+    "name": "Tic-Tac-Toe Django",
+
+    // Build the 'development' stage of the root dockerfile
+    "build": {
+        "dockerfile": "../dockerfile",
+        "context": "..",
+        "target": "development"
+    },
+
+    // Mount the workspace into the container working directory
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
+    "workspaceFolder": "/app",
+
+    // Keep the container alive — start the dev server manually in the terminal:
+    //   python manage.py runserver 0.0.0.0:8000
+    "overrideCommand": true,
+
+    // Sync dependencies after the workspace bind-mount replaces /app
+    "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+
+    // Forward Django dev server port to the host
+    "forwardPorts": [8000],
+    "portsAttributes": {
+        "8000": {
+            "label": "Django Dev Server",
+            "onAutoForward": "notify"
+        }
+    },
+
+    // VS Code extensions and settings applied inside the container
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.pylint",
+                "ms-python.black-formatter",
+                "ms-python.isort",
+                "batisteo.vscode-django",
+                "ms-python.debugpy"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "editor.formatOnSave": true,
+                "editor.rulers": [88],
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter"
+                }
+            }
+        }
+    }
+}

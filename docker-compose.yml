@@ -1,0 +1,85 @@
+# =============================================================================
+# docker-compose — Django Auth + MariaDB
+#
+# Usage:
+#   cp .env.template .env          # fill in passwords and secrets
+#   docker compose build           # build both images
+#   docker compose up -d           # start the stack
+#   docker compose logs -f         # follow logs
+#   docker compose down            # stop and remove containers
+#   docker compose down -v         # also remove named volumes (DATA LOSS)
+# =============================================================================
+
+services:
+
+  # ── MariaDB ──────────────────────────────────────────────────────────────
+  mariadb-1:
+    build:
+      context: ./mariadb
+      dockerfile: dockerfile
+    container_name: mariadb-1
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE:      ${DB_NAME}
+      MYSQL_USER:          ${DB_USER}
+      MYSQL_PASSWORD:      ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - mariadb-logs:/var/log/mysql
+    healthcheck:
+      test:
+        - CMD
+        - mariadb-admin
+        - ping
+        - -h
+        - localhost
+        - -u
+        - root
+        - --password=${MYSQL_ROOT_PASSWORD}
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - network-1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ── Django ────────────────────────────────────────────────────────────────
+  django-auth-1:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: django-auth-1
+    restart: unless-stopped
+    depends_on:
+      mariadb-1:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mariadb-1
+      DB_PORT: "3306"
+    ports:
+      - "${DJANGO_PORT:-8000}:8000"
+    networks:
+      - network-1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  mariadb-data:
+  mariadb-logs:
+
+networks:
+  network-1:
+    driver: bridge
