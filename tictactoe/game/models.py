@@ -3,6 +3,12 @@ from django.contrib.auth.models import User
 
 # Create your models here.
 
+WINNING_LINES = [
+    (0, 1, 2), (3, 4, 5), (6, 7, 8),  # rows
+    (0, 3, 6), (1, 4, 7), (2, 5, 8),  # cols
+    (0, 4, 8), (2, 4, 6),              # diagonals
+]
+
 
 class Player(models.Model):
     user = models.OneToOneField(User, related_name="player", on_delete=models.CASCADE)
@@ -55,6 +61,55 @@ class Game(models.Model):
     @property
     def is_active(self):
         return self.status == self.STATUS_ACTIVE
+
+    def get_symbol(self, player):
+        return "X" if player == self.player_x else "O"
+
+    def apply_move(self, player, position):
+        """Apply a move and return (winner_player_or_None, is_draw)."""
+        symbol = self.get_symbol(player)
+        board = list(self.board_state)
+        board[position] = symbol
+        self.board_state = "".join(board)
+
+        winner_symbol = self._check_winner()
+        if winner_symbol:
+            winning_player = self.player_x if winner_symbol == "X" else self.player_o
+            self._finish(winner=winning_player)
+            return winning_player, False
+
+        if "-" not in self.board_state:
+            self._finish(winner=None)
+            return None, True
+
+        # switch turn
+        self.current_turn = self.player_o if player == self.player_x else self.player_x
+        self.save()
+        return None, False
+
+    def _check_winner(self):
+        b = self.board_state
+        for a, c, d in WINNING_LINES:
+            if b[a] != "-" and b[a] == b[c] == b[d]:
+                return b[a]
+        return None
+
+    def _finish(self, winner):
+        self.status = self.STATUS_FINISHED
+        self.winner = winner
+        self.save()
+
+        if winner:
+            loser = self.player_o if winner == self.player_x else self.player_x
+            winner.wins += 1
+            loser.losses += 1
+            winner.save()
+            loser.save()
+        else:
+            self.player_x.draws += 1
+            self.player_o.draws += 1
+            self.player_x.save()
+            self.player_o.save()
 
 
 class Move(models.Model):
