@@ -14,6 +14,9 @@ python manage.py migrate --noinput
 echo "[entrypoint] Collecting static files..."
 python manage.py collectstatic --noinput
 
+echo "[entrypoint] Creating roles..."
+python manage.py create_roles
+
 echo "[entrypoint] Starting Gunicorn..."
 exec gunicorn ${SERVICE_NAME}.wsgi:application \
     --bind 0.0.0.0:8000 \
