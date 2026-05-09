@@ -1,7 +1,10 @@
+import logging
 import os
 
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -12,23 +15,21 @@ class Command(BaseCommand):
         password = os.environ.get("ADMIN_PASSWORD")
 
         if not password:
-            self.stdout.write(
-                self.style.WARNING(
-                    "ADMIN_PASSWORD not set — skipping default admin creation."
-                )
-            )
+            log_msg = "ADMIN_PASSWORD not set — skipping default admin creation"
+            logger.warning(f"create_admin: {log_msg}")
+            self.stdout.write(self.style.WARNING(log_msg))
             return
 
         if User.objects.filter(username=username).exists():
-            self.stdout.write(self.style.WARNING(f"Admin user '{username}' already exists — skipped."))
+            log_msg = f"admin user '{username}' already exists — skipped"
+            logger.warning(f"create_admin: {log_msg}")
+            self.stdout.write(self.style.WARNING(log_msg))
             return
 
         user = User.objects.create_superuser(username=username, password=password)
         group = Group.objects.get(name="admin")
         user.groups.add(group)
+        log_msg = f"admin user '{username}' created"
+        logger.info(f"create_admin: {log_msg}")
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Admin user '{username}' created with Django Admin access."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(log_msg))

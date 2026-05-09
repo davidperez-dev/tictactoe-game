@@ -25,11 +25,12 @@ class RegisterUserView(APIView):
         """Register a new user"""
         serializer = UserRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.warning("Registration failed for '%s': %s", request.data.get("username", "<unknown>"), serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
         token = TokenObtainPairSerializer.get_token(user)
-        logger.info(f"New user registered: {user.username}")
+        logger.info("New user registered: '%s'", user.username)
 
         return Response(
             {"username": user.username, "token": str(token.access_token)},
@@ -45,8 +46,10 @@ class LoginUserView(APIView):
             data=request.data, context={"request": request}
         )
         if not serializer.is_valid():
+            logger.warning("Failed login for '%s'", request.data.get("username", "<unknown>"))
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        logger.info("User '%s' logged in", request.data.get("username", "<unknown>"))
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 class UserListView(APIView):
