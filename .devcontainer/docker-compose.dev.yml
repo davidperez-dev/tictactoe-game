@@ -1,5 +1,5 @@
 services:
-  tictactoe-1:
+  tictactoe-0:
     build:
       target: development
     volumes:

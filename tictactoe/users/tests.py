@@ -44,8 +44,8 @@ class RegisterEndpointTests(APITestCase):
         url = reverse("register")
         res = self.client.post(url, {"username": "alice", "password": VALID_PASSWORD}, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(res.data["username"], "alice")
-        self.assertIn("user", res.data["roles"])
+        self.assertIn("access", res.data)
+        self.assertIn("refresh", res.data)
 
     def test_register_missing_username(self):
         url = reverse("register")
@@ -66,7 +66,7 @@ class RegisterEndpointTests(APITestCase):
         _make_user("alice")
         url = reverse("register")
         res = self.client.post(url, {"username": "alice", "password": VALID_PASSWORD}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class LoginEndpointTests(APITestCase):
@@ -222,38 +222,39 @@ class CreateUserCommandTests(TestCase):
         call_command("create_roles", stdout=StringIO())
 
     def test_create_user_role(self):
-        call_command("create_user", "frank", "pass123", "user", stdout=StringIO())
+        call_command("create_user", "frank", VALID_PASSWORD, "user", stdout=StringIO())
         user = User.objects.get(username="frank")
         self.assertTrue(user.groups.filter(name="user").exists())
         self.assertFalse(user.is_staff)
 
     def test_create_admin_role(self):
-        call_command("create_user", "grace", "pass123", "admin", stdout=StringIO())
+        call_command("create_user", "grace", VALID_PASSWORD, "admin", stdout=StringIO())
         user = User.objects.get(username="grace")
         self.assertTrue(user.groups.filter(name="admin").exists())
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_superuser)
 
     def test_duplicate_raises_error(self):
-        call_command("create_user", "henry", "pass123", "user", stdout=StringIO())
+        call_command("create_user", "henry", VALID_PASSWORD, "user", stdout=StringIO())
         with self.assertRaises(CommandError):
-            call_command("create_user", "henry", "other", "user", stdout=StringIO())
+            call_command("create_user", "henry", VALID_PASSWORD, "user", stdout=StringIO())
 
 
 class ChangePasswordCommandTests(TestCase):
 
     def setUp(self):
         call_command("create_roles", stdout=StringIO())
-        call_command("create_user", "ivan", "oldpass", "user", stdout=StringIO())
+        call_command("create_user", "ivan", VALID_PASSWORD, "user", stdout=StringIO())
 
     def test_change_password_success(self):
-        call_command("change_password", "ivan", "newpass", stdout=StringIO())
+        new_password = "Newpass1@gh"
+        call_command("change_password", "ivan", new_password, stdout=StringIO())
         user = User.objects.get(username="ivan")
-        self.assertTrue(user.check_password("newpass"))
+        self.assertTrue(user.check_password(new_password))
 
     def test_change_password_unknown_user(self):
         with self.assertRaises(CommandError):
-            call_command("change_password", "nobody", "pass", stdout=StringIO())
+            call_command("change_password", "nobody", VALID_PASSWORD, stdout=StringIO())
 
 
 class CreateAdminCommandTests(TestCase):
