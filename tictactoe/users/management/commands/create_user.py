@@ -1,5 +1,10 @@
+import logging
+
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.password_validation import validate_password
+
+logger = logging.getLogger(__name__)
 
 VALID_ROLES = ["admin", "user"]
 
@@ -22,7 +27,16 @@ class Command(BaseCommand):
         role     = options["role"]
 
         if User.objects.filter(username=username).exists():
-            raise CommandError(f"User '{username}' already exists.")
+            log_msg = f"user '{username}' already exists"
+            logger.error(f"create_user: {log_msg}")
+            raise CommandError(log_msg)
+
+        try:
+            validate_password(password)
+        except Exception as e:
+            log_msg = f"invalid password for '{username}': {e}"
+            logger.error(f"create_user: {log_msg}")
+            raise CommandError(f"Invalid password: {e}")
 
         is_staff     = role == "admin"
         is_superuser = role == "admin"
@@ -35,6 +49,6 @@ class Command(BaseCommand):
         group = Group.objects.get(name=role)
         user.groups.add(group)
 
-        self.stdout.write(
-            self.style.SUCCESS(f"User '{username}' created with role '{role}'.")
-        )
+        log_msg = f"user '{username}' created with role '{role}'"
+        logger.info(f"create_user: {log_msg}")
+        self.stdout.write(self.style.SUCCESS(log_msg))
