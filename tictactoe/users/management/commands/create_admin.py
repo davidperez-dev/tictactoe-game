@@ -4,6 +4,8 @@ import os
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
 
+from game.models import Player
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +31,7 @@ class Command(BaseCommand):
         user = User.objects.create_superuser(username=username, password=password)
         group = Group.objects.get(name="admin")
         user.groups.add(group)
+        Player.objects.get_or_create(user=user)
         log_msg = f"admin user '{username}' created"
         logger.info(f"create_admin: {log_msg}")
 

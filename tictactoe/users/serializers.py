@@ -3,6 +3,8 @@ from django.contrib.auth.models import User, Group
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 
+from game.models import Player
+
 
 class UserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
@@ -40,6 +42,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         default_role = "user"
         group, _ = Group.objects.get_or_create(name=default_role)
         user.groups.add(group)
+
+        Player.objects.create(user=user)
 
         return user
 

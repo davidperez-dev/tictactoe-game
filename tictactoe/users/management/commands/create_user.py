@@ -4,6 +4,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.password_validation import validate_password
 
+from game.models import Player
+
 logger = logging.getLogger(__name__)
 
 VALID_ROLES = ["admin", "user"]
@@ -48,6 +50,7 @@ class Command(BaseCommand):
         )
         group = Group.objects.get(name=role)
         user.groups.add(group)
+        Player.objects.get_or_create(user=user)
 
         log_msg = f"user '{username}' created with role '{role}'"
         logger.info(f"create_user: {log_msg}")
