@@ -191,6 +191,8 @@ else:
 # Logging configuration
 # ---------------------------------------------------------------------------
 
+_LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -209,12 +211,22 @@ LOGGING = {
     "loggers": {
         "users": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": _LOG_LEVEL,
             "propagate": False,
         },
         "game": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "axes": {
+            "handlers": ["console"],
+            "level": "WARNING",
             "propagate": False,
         },
     },
