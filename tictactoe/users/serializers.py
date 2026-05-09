@@ -1,25 +1,42 @@
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.models import User, Group
+from rest_framework import serializers
+
+class UserSerializer(serializers.ModelSerializer):
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "roles", "is_active"]
+
+    def get_roles(self, obj):
+        return list(obj.groups.values_list("name", flat=True))
 
 
-class RoleTokenObtainPairSerializer(TokenObtainPairSerializer):
+class UserRegistrationSerializer(serializers.ModelSerializer):
     """
-    Extends the default JWT payload with the user's roles.
-
-    The resulting token includes:
-        {
-          "username": "david",
-          "email": "davidperez.code@gmail.com",
-          "roles": ["admin"]
-        }
-
-    The external web reads roles from the token exactly as it would
-    with a Keycloak token (roles array in the payload).
+    Serializer for user registration. It validates the input data and creates a new user.
     """
 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token["username"] = user.username
-        token["email"]    = user.email
-        token["roles"]    = list(user.groups.values_list("name", flat=True))
-        return token
+    password = serializers.CharField(
+        write_only=True, required=True, validators=[validate_password]
+    )
+
+    class Meta:
+        model = User
+        fields = ["username", "password"]
+
+    def create(self, validated_data):
+        username = validated_data["username"]
+        password = validated_data["password"]
+
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError({"username": "Username already exists"})
+
+        user = User.objects.create_user(username=username, password=password)
+
+        default_role = "user"
+        group, _ = Group.objects.get_or_create(name=default_role)
+        user.groups.add(group)
+
+        return user

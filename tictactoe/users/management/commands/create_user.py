@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.password_validation import validate_password
 
 VALID_ROLES = ["admin", "user"]
 
@@ -23,6 +24,11 @@ class Command(BaseCommand):
 
         if User.objects.filter(username=username).exists():
             raise CommandError(f"User '{username}' already exists.")
+
+        try:
+            validate_password(password)
+        except Exception as e:
+            raise CommandError(f"Invalid password: {e}")
 
         is_staff     = role == "admin"
         is_superuser = role == "admin"

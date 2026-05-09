@@ -85,7 +85,7 @@ Example of a valid password: `Tictactoe1@`
 
 ### Endpoints
 
-Base URL: `http://localhost:8000`
+Base URL: `http://localhost:8000/api/v1`
 
 #### Register
 
@@ -99,12 +99,11 @@ Body:
 ```
 
 Responses:
-- `201 Created` — user created, returns `{ "username": "alice", "roles": ["user"] }`
-- `400 Bad Request` — missing field or password does not meet policy
-- `409 Conflict` — username already exists
+- `201 Created` — user created, returns `{ "username": "alice", "token": "<access_token>" }`
+- `400 Bad Request` — missing field, password does not meet policy, or username already exists
 
 ```bash
-curl -X POST http://localhost:8000/register/ \
+curl -X POST http://localhost:8000/api/v1/register/ \
   -H "Content-Type: application/json" \
   -d '{"username": "alice", "password": "Tictactoe1@"}'
 ```
@@ -127,7 +126,7 @@ Responses:
 - `401 Unauthorized` — invalid credentials
 
 ```bash
-curl -X POST http://localhost:8000/login/ \
+curl -X POST http://localhost:8000/api/v1/login/ \
   -H "Content-Type: application/json" \
   -d '{"username": "david", "password": "SecurePassword1@"}'
 ```
@@ -150,7 +149,7 @@ Responses:
 - `401 Unauthorized` — token invalid or expired
 
 ```bash
-curl -X POST http://localhost:8000/token/refresh/ \
+curl -X POST http://localhost:8000/api/v1/token/refresh/ \
   -H "Content-Type: application/json" \
   -d '{"refresh": "<refresh_token>"}'
 ```
@@ -166,7 +165,7 @@ GET /users/
 ```
 
 ```bash
-curl http://localhost:8000/users/ \
+curl http://localhost:8000/api/v1/users/ \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -188,7 +187,7 @@ GET /users/<username>/
 ```
 
 ```bash
-curl http://localhost:8000/users/david/ \
+curl http://localhost:8000/api/v1/users/david/ \
   -H "Authorization: Bearer <access_token>"
 ```
 

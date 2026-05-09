@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User
-
+from django.contrib.auth.password_validation import validate_password
 
 class Command(BaseCommand):
     help = "Change the password of an existing user"
@@ -12,6 +12,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         username = options["username"]
         password = options["password"]
+
+        try:
+            validate_password(password)
+        except Exception as e:
+            raise CommandError(f"Invalid password: {e}")
 
         try:
             user = User.objects.get(username=username)
