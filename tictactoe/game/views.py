@@ -83,3 +83,55 @@ class GameDetailView(APIView):
         serializer = GameSerializer(game)
         return Response(serializer.data)
 
+
+class MoveView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, game_id):
+        """Make a move. Body: { "position": 0-8 }"""
+        try:
+            game = Game.objects.prefetch_related("moves").get(pk=game_id)
+        except Game.DoesNotExist:
+            return Response({"error": "game not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not game.is_active:
+            return Response({"error": "game is already finished"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            player = request.user.player
+        except Player.DoesNotExist:
+            return Response({"error": "user has no player profile"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if game.current_turn != player:
+            return Response({"error": "it is not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+
+        position = request.data.get("position")
+        if position is None:
+            return Response({"error": "position is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            position = int(position)
+        except (TypeError, ValueError):
+            return Response({"error": "position must be an integer 0-8"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if position < 0 or position > 8:
+            return Response({"error": "position must be between 0 and 8"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if game.board_state[position] != "-":
+            return Response({"error": "position is already taken"}, status=status.HTTP_400_BAD_REQUEST)
+
+        symbol = game.get_symbol(player)
+        winner, is_draw = game.apply_move(player, position)
+
+        Move.objects.create(game=game, player=player, position=position, symbol=symbol)
+
+        if winner:
+            logger.info("Game %d finished: %s wins", game.id, winner)
+        elif is_draw:
+            logger.info("Game %d finished: draw", game.id)
+        else:
+            logger.info("Game %d: %s played position %d", game.id, player, position)
+
+        game.refresh_from_db()
+        serializer = GameSerializer(game)
+        return Response(serializer.data)

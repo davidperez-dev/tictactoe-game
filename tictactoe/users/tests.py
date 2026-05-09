@@ -263,14 +263,19 @@ class CreateAdminCommandTests(TestCase):
         call_command("create_roles", stdout=StringIO())
 
     def test_creates_admin_from_env(self):
-        with self.settings():
-            import os
-            os.environ["ADMIN_USERNAME"] = "superadmin"
-            os.environ["ADMIN_PASSWORD"] = "adminpass"
-            call_command("create_admin", stdout=StringIO())
-            user = User.objects.get(username="superadmin")
-            self.assertTrue(user.is_superuser)
-            self.assertTrue(user.groups.filter(name="admin").exists())
+        import os
+        os.environ["ADMIN_USERNAME"] = "superadmin"
+        os.environ["ADMIN_PASSWORD"] = VALID_PASSWORD
+        call_command("create_admin", stdout=StringIO())
+        user = User.objects.get(username="superadmin")
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.groups.filter(name="admin").exists())
+
+    def test_creates_admin_from_args(self):
+        call_command("create_admin", "argadmin", VALID_PASSWORD, stdout=StringIO())
+        user = User.objects.get(username="argadmin")
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.groups.filter(name="admin").exists())
 
     def test_skips_without_password(self):
         import os
@@ -282,7 +287,11 @@ class CreateAdminCommandTests(TestCase):
     def test_skips_existing_admin(self):
         import os
         os.environ["ADMIN_USERNAME"] = "superadmin"
-        os.environ["ADMIN_PASSWORD"] = "adminpass"
+        os.environ["ADMIN_PASSWORD"] = VALID_PASSWORD
         call_command("create_admin", stdout=StringIO())
         call_command("create_admin", stdout=StringIO())
         self.assertEqual(User.objects.filter(username="superadmin").count(), 1)
+
+    def test_weak_password_raises_error(self):
+        with self.assertRaises(CommandError):
+            call_command("create_admin", "weakadmin", "weak", stdout=StringIO())

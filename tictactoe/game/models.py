@@ -65,6 +65,28 @@ class Game(models.Model):
     def get_symbol(self, player):
         return "X" if player == self.player_x else "O"
 
+    def apply_move(self, player, position):
+        """Apply a move and return (winner_player_or_None, is_draw)."""
+        symbol = self.get_symbol(player)
+        board = list(self.board_state)
+        board[position] = symbol
+        self.board_state = "".join(board)
+
+        winner_symbol = self._check_winner()
+        if winner_symbol:
+            winning_player = self.player_x if winner_symbol == "X" else self.player_o
+            self._finish(winner=winning_player)
+            return winning_player, False
+
+        if "-" not in self.board_state:
+            self._finish(winner=None)
+            return None, True
+
+        # switch turn
+        self.current_turn = self.player_o if player == self.player_x else self.player_x
+        self.save()
+        return None, False
+
     def _check_winner(self):
         b = self.board_state
         for a, c, d in WINNING_LINES:
@@ -88,3 +110,16 @@ class Game(models.Model):
             self.player_o.draws += 1
             self.player_x.save()
             self.player_o.save()
+
+
+class Move(models.Model):
+    game = models.ForeignKey(Game, related_name="moves", on_delete=models.CASCADE)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    position = models.PositiveSmallIntegerField()
+    symbol = models.CharField(max_length=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return (
+            f"Move by {self.player} at position {self.position} in Game {self.game.id}"
+        )

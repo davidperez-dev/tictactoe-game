@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Game, Player
+from .models import Game, Move, Player
 
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -12,18 +12,27 @@ class PlayerSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "wins", "losses", "draws", "total_games"]
 
 
+class MoveSerializer(serializers.ModelSerializer):
+    player = serializers.CharField(source="player.user.username", read_only=True)
+
+    class Meta:
+        model = Move
+        fields = ["id", "player", "symbol", "position", "created_at"]
+
+
 class GameSerializer(serializers.ModelSerializer):
     player_x = serializers.CharField(source="player_x.user.username", read_only=True)
     player_o = serializers.CharField(source="player_o.user.username", read_only=True)
     current_turn = serializers.CharField(source="current_turn.user.username", read_only=True)
     winner = serializers.CharField(source="winner.user.username", read_only=True, default=None)
     board = serializers.SerializerMethodField()
+    moves = MoveSerializer(many=True, read_only=True)
 
     class Meta:
         model = Game
         fields = [
             "id", "player_x", "player_o", "current_turn", "winner",
-            "status", "board", "created_at", "updated_at",
+            "status", "board", "moves", "created_at", "updated_at",
         ]
 
     def get_board(self, obj):
