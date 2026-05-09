@@ -13,11 +13,11 @@
 services:
 
   # ── MariaDB ──────────────────────────────────────────────────────────────
-  mariadb-1:
+  mariadb-0:
     build:
       context: ./mariadb
       dockerfile: dockerfile
-    container_name: mariadb-1
+    container_name: mariadb-0
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -52,19 +52,19 @@ services:
         max-file: "5"
 
   # ── Django ────────────────────────────────────────────────────────────────
-  tictactoe-1:
+  tictactoe-0:
     build:
       context: .
       dockerfile: dockerfile
-    container_name: tictactoe-1
+    container_name: tictactoe-0
     restart: unless-stopped
     depends_on:
-      mariadb-1:
+      mariadb-0:
         condition: service_healthy
     env_file:
       - .env
     environment:
-      DB_HOST: mariadb-1
+      DB_HOST: mariadb-0
       DB_PORT: "3306"
     ports:
       - "${DJANGO_PORT:-8000}:8000"
