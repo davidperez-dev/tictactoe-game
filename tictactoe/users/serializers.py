@@ -1,6 +1,8 @@
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User, Group
+from django.contrib.auth import authenticate
 from rest_framework import serializers
+
 
 class UserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
@@ -38,5 +40,24 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         default_role = "user"
         group, _ = Group.objects.get_or_create(name=default_role)
         user.groups.add(group)
+
+        return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["username", "password"]
+
+    def login(self, request=None):
+        username = self.validated_data["username"]
+        password = self.validated_data["password"]
+
+        user = authenticate(request=request, username=username, password=password)
+        if user is None:
+            raise serializers.ValidationError("Invalid username or password")
 
         return user

@@ -19,6 +19,7 @@ class GameAdmin(admin.ModelAdmin):
         "current_turn",
         "winner",
         "status",
+        "updated_at",
         "created_at",
     ]
 

@@ -44,8 +44,8 @@ class RegisterEndpointTests(APITestCase):
         url = reverse("register")
         res = self.client.post(url, {"username": "alice", "password": VALID_PASSWORD}, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(res.data["username"], "alice")
-        self.assertIn("token", res.data)
+        self.assertIn("access", res.data)
+        self.assertIn("refresh", res.data)
 
     def test_register_missing_username(self):
         url = reverse("register")

@@ -11,11 +11,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .serializers import UserRegistrationSerializer, UserSerializer
+from .serializers import UserRegistrationSerializer, UserSerializer, UserLoginSerializer
 
 # Create your views here.
 
 logger = logging.getLogger(__name__)
+
 
 # User management
 class RegisterUserView(APIView):
@@ -25,7 +26,11 @@ class RegisterUserView(APIView):
         """Register a new user"""
         serializer = UserRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
-            logger.warning("Registration failed for '%s': %s", request.data.get("username", "<unknown>"), serializer.errors)
+            logger.warning(
+                "Registration failed for '%s': %s",
+                request.data.get("username", "<unknown>"),
+                serializer.errors,
+            )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
@@ -33,24 +38,39 @@ class RegisterUserView(APIView):
         logger.info("New user registered: '%s'", user.username)
 
         return Response(
-            {"username": user.username, "token": str(token.access_token)},
+            {"access": str(token.access_token), "refresh": str(token)},
             status=status.HTTP_201_CREATED,
         )
+
 
 class LoginUserView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         """Login a user and return a JWT token"""
-        serializer =TokenObtainPairSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = UserLoginSerializer(data=request.data)
         if not serializer.is_valid():
-            logger.warning("Failed login for '%s'", request.data.get("username", "<unknown>"))
+            logger.warning(
+                "Login failed for '%s': %s",
+                request.data.get("username", "<unknown>"),
+                serializer.errors,
+            )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            user = serializer.login(request)
+        except Exception:
+            logger.warning("Failed login for '%s'", request.data.get("username", "<unknown>"))
+            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        token = TokenObtainPairSerializer.get_token(user)
         logger.info("User '%s' logged in", request.data.get("username", "<unknown>"))
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+        return Response(
+            {"access": str(token.access_token), "refresh": str(token)},
+            status=status.HTTP_200_OK,
+        )
+
 
 class UserListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -65,7 +85,9 @@ class UserListView(APIView):
         try:
             user = User.objects.prefetch_related("groups").get(username=username)
         except User.DoesNotExist:
-            return Response({"error": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "user not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = UserSerializer(user)
         return Response(serializer.data)
