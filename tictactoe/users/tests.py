@@ -42,7 +42,7 @@ class RegisterEndpointTests(APITestCase):
 
     def test_register_success(self):
         url = reverse("register")
-        res = self.client.post(url, {"username": "alice", "password": VALID_PASSWORD}, format="json")
+        res = self.client.post(url, {"username": "david", "password": VALID_PASSWORD}, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertIn("access", res.data)
         self.assertIn("refresh", res.data)
@@ -54,36 +54,36 @@ class RegisterEndpointTests(APITestCase):
 
     def test_register_missing_password(self):
         url = reverse("register")
-        res = self.client.post(url, {"username": "alice"}, format="json")
+        res = self.client.post(url, {"username": "david"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_register_weak_password(self):
         url = reverse("register")
-        res = self.client.post(url, {"username": "alice", "password": "weak"}, format="json")
+        res = self.client.post(url, {"username": "david", "password": "weak"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_register_duplicate_username(self):
-        _make_user("alice")
+        _make_user("david")
         url = reverse("register")
-        res = self.client.post(url, {"username": "alice", "password": VALID_PASSWORD}, format="json")
+        res = self.client.post(url, {"username": "david", "password": VALID_PASSWORD}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class LoginEndpointTests(APITestCase):
 
     def setUp(self):
-        self.user = _make_user("bob", "password123")
+        self.user = _make_user("steve", "password123")
 
     def test_login_success(self):
         url = reverse("login")
-        res = self.client.post(url, {"username": "bob", "password": "password123"}, format="json")
+        res = self.client.post(url, {"username": "steve", "password": "password123"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("access", res.data)
         self.assertIn("refresh", res.data)
 
     def test_login_wrong_password(self):
         url = reverse("login")
-        res = self.client.post(url, {"username": "bob", "password": "wrong"}, format="json")
+        res = self.client.post(url, {"username": "steve", "password": "wrong"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_login_unknown_user(self):
@@ -263,14 +263,19 @@ class CreateAdminCommandTests(TestCase):
         call_command("create_roles", stdout=StringIO())
 
     def test_creates_admin_from_env(self):
-        with self.settings():
-            import os
-            os.environ["ADMIN_USERNAME"] = "superadmin"
-            os.environ["ADMIN_PASSWORD"] = "adminpass"
-            call_command("create_admin", stdout=StringIO())
-            user = User.objects.get(username="superadmin")
-            self.assertTrue(user.is_superuser)
-            self.assertTrue(user.groups.filter(name="admin").exists())
+        import os
+        os.environ["ADMIN_USERNAME"] = "superadmin"
+        os.environ["ADMIN_PASSWORD"] = VALID_PASSWORD
+        call_command("create_admin", stdout=StringIO())
+        user = User.objects.get(username="superadmin")
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.groups.filter(name="admin").exists())
+
+    def test_creates_admin_from_args(self):
+        call_command("create_admin", "argadmin", VALID_PASSWORD, stdout=StringIO())
+        user = User.objects.get(username="argadmin")
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.groups.filter(name="admin").exists())
 
     def test_skips_without_password(self):
         import os
@@ -282,7 +287,11 @@ class CreateAdminCommandTests(TestCase):
     def test_skips_existing_admin(self):
         import os
         os.environ["ADMIN_USERNAME"] = "superadmin"
-        os.environ["ADMIN_PASSWORD"] = "adminpass"
+        os.environ["ADMIN_PASSWORD"] = VALID_PASSWORD
         call_command("create_admin", stdout=StringIO())
         call_command("create_admin", stdout=StringIO())
         self.assertEqual(User.objects.filter(username="superadmin").count(), 1)
+
+    def test_weak_password_raises_error(self):
+        with self.assertRaises(CommandError):
+            call_command("create_admin", "weakadmin", "weak", stdout=StringIO())

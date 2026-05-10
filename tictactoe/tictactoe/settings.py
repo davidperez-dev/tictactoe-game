@@ -18,7 +18,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# ---------------------------------------------------------------------------
 # Security settings
+# ---------------------------------------------------------------------------
 
 SECRET_KEY = os.environ.get(
     "SECRET_KEY", "django-insecure-swwbtco1ia#tb@2pyhna$o@&ln#9sf@ag16$kj%47s&y@pra!b"
@@ -27,7 +29,9 @@ DEBUG = os.environ.get("DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 
+# ---------------------------------------------------------------------------
 # Application definition
+# ---------------------------------------------------------------------------
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -42,6 +46,11 @@ INSTALLED_APPS = [
     "users",
     "game",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Middleware configuration
+# ---------------------------------------------------------------------------
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -78,8 +87,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "tictactoe.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# ---------------------------------------------------------------------------
+# Database configuration
+# ---------------------------------------------------------------------------
 
 DATABASES = {
     "default": {
@@ -97,40 +107,40 @@ DATABASES = {
 }
 
 
+# ---------------------------------------------------------------------------
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+# ---------------------------------------------------------------------------
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "users.validators.CustomPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "users.validators.CustomPasswordValidator"},
+    {"NAME": "users.validators.CustomPasswordValidator"},
 ]
 
 
+# ---------------------------------------------------------------------------
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
+# ---------------------------------------------------------------------------
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
+# ---------------------------------------------------------------------------
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# ---------------------------------------------------------------------------
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# ---------------------------------------------------------------------------
+# Authentication and security settings
+# ---------------------------------------------------------------------------
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -141,6 +151,11 @@ REST_FRAMEWORK = {
     ],
 }
 
+
+# ---------------------------------------------------------------------------
+# JWT (simplejwt) configuration
+# ---------------------------------------------------------------------------
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -148,13 +163,21 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+
+# ---------------------------------------------------------------------------
 # Authentication backends
+# ---------------------------------------------------------------------------
+
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-# Axes settings for brute-force attack prevention
+
+# ---------------------------------------------------------------------------
+# Axes configuration for brute-force attack prevention
+# ---------------------------------------------------------------------------
+
 AXES_FAILURE_LIMIT = 5  # lock after 5 failed attempts
 AXES_COOLOFF_TIME = 1  # unlock after 1 hour
 AXES_LOCKOUT_CALLABLE = None
@@ -164,14 +187,24 @@ AXES_IPWARE_META_PRECEDENCE_ORDER = [
     "REMOTE_ADDR",
 ]
 
-# CORS settings
+
+# ---------------------------------------------------------------------------
+# CORS configuration
+# ---------------------------------------------------------------------------
+
 _cors_origins = os.environ.get("CORS_ORIGINS", "*")
 if _cors_origins == "*":
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 
+
+# ---------------------------------------------------------------------------
 # Logging configuration
+# ---------------------------------------------------------------------------
+
+_LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -190,7 +223,22 @@ LOGGING = {
     "loggers": {
         "users": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        "game": {
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "axes": {
+            "handlers": ["console"],
+            "level": "WARNING",
             "propagate": False,
         },
     },
