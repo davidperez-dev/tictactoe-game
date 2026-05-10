@@ -413,13 +413,22 @@ python manage.py create_user steve Tictactoe1@ admin
 ```
 
 #### create_admin - option 1
+
+Creates admin user interactively:
+
+```bash
+python manage.py create_admin david Tictactoe1@
+```
+
+#### create_admin - option 2
+
 Creates admin user interactively:
 
 ```bash
 python manage.py create_user david Tictactoe1@ admin
 ```
 
-#### create_admin - option 2
+#### create_admin - option 3
 
 Creates the default admin user from environment variables. Intended for automated deployments.
 
