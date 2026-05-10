@@ -58,7 +58,7 @@ python manage.py test users --verbosity=2
 python manage.py test game --verbosity=2
 
 # All
-python manage.py test --verbosity=2
+python manage.py test users game --verbosity=2
 ```
 
 ---
