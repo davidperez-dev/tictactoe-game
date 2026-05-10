@@ -112,9 +112,9 @@ DATABASES = {
 # ---------------------------------------------------------------------------
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "users.validators.CustomPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "users.validators.CustomPasswordValidator"},
+    {"NAME": "users.validators.CustomPasswordValidator"},
 ]
 
 
@@ -142,8 +142,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Authentication and security settings
 # ---------------------------------------------------------------------------
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -153,6 +151,11 @@ REST_FRAMEWORK = {
     ],
 }
 
+
+# ---------------------------------------------------------------------------
+# JWT (simplejwt) configuration
+# ---------------------------------------------------------------------------
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -160,12 +163,21 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+
+# ---------------------------------------------------------------------------
+# Authentication backends
+# ---------------------------------------------------------------------------
+
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-# Axes settings for brute-force attack prevention
+
+# ---------------------------------------------------------------------------
+# Axes configuration for brute-force attack prevention
+# ---------------------------------------------------------------------------
+
 AXES_FAILURE_LIMIT = 5  # lock after 5 failed attempts
 AXES_COOLOFF_TIME = 1  # unlock after 1 hour
 AXES_LOCKOUT_CALLABLE = None
